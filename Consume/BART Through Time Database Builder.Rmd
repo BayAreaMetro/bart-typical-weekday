@@ -10,11 +10,11 @@ output:
 ## Administration
 
 #### Purpose
-BART provides, on an annual basis, information on daily ridership.  I use an Excel macro to get the data out of Excel jail and into flat files.  This script combines the databases into as single file and creates a flat file of typical weekday statistics for use in Tableau. 
+BART provides, on an annual basis, information on daily ridership.  An Excel macro is used to get the data out of Excel jail and into flat files.  This script combines the databases into a single file and creates a flat file of typical weekday statistics for use in Tableau. 
 
 #### Outputs
-1.  A condensed database for use in Tableau Public (see ``Bart Through Time Typical Weekday.twb``).
-2.  A large database for SQL and Tableau(see ``BART Through Time.csv`` and ``[DavidOry].[BART Through Time]``)
+1.  A condensed database of typical weekday transactions for use in Tableau (see ``Bart Through Time Typical Weekday.twb``).
+2.  A larger database of transactions by date for general use.
 
 
 ## Procedure
@@ -176,7 +176,5 @@ combine.write <- combine.clean %>%
 
 save(combine.write, file = F_ALL_R)
 write.csv(combine.write, file = F_ALL_CSV, row.names = FALSE, quote = F)
-
-
 ```
 
