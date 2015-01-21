@@ -1,0 +1,182 @@
+---
+title: "BART Through Time Database Builder"
+author: "David Ory"
+output:
+  html_document:
+    theme: cosmo
+    toc: yes
+---
+
+## Administration
+
+#### Purpose
+BART provides, on an annual basis, information on daily ridership.  I use an Excel macro to get the data out of Excel jail and into flat files.  This script combines the databases into as single file and creates a flat file of typical weekday statistics for use in Tableau. 
+
+#### Outputs
+1.  A condensed database for use in Tableau Public (see ``Bart Through Time Typical Weekday.twb``).
+2.  A large database for SQL and Tableau(see ``BART Through Time.csv`` and ``[DavidOry].[BART Through Time]``)
+
+
+## Procedure
+#### Overhead
+
+```{r overhead, results = 'hide'}
+library(knitr)
+library(stringr)
+suppressMessages(library(dplyr))
+library(timeDate)
+library(chron)
+```
+
+```{r config, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+```
+
+#### Remote output file names
+```{r file-names}
+F_TYPICAL_R   = "M:/Data/Transit/BART Through Time/BART Through Time Typical Weekday.Rdata"
+F_TYPICAL_CSV = "M:/Data/Transit/BART Through Time/BART Through Time Typical Weekday.csv"
+
+F_ALL_R   = "M:/Data/Transit/BART Through Time/BART Through Time.Rdata"
+F_ALL_CSV = "M:/Data/Transit/BART Through Time/BART Through Time.csv"
+
+```
+
+
+#### Methods
+```{r methods}
+
+Build_One_Year_Data <- function(input_year_string){
+  
+  mar_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " March.csv", sep = '')
+  apr_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " April.csv", sep = '')
+  may_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " May.csv", sep = '')
+  sep_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " September.csv", sep = '')
+  oct_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " October.csv", sep = '')
+  nov_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " November.csv", sep = '')
+  
+  input.mar <- read.table(file = mar_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  input.apr <- read.table(file = apr_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  input.may <- read.table(file = may_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  input.sep <- read.table(file = sep_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  input.oct <- read.table(file = oct_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  input.nov <- read.table(file = nov_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  
+  input.combine <- rbind(input.mar, input.apr, input.may, input.sep, input.oct, input.nov)
+  
+  input.combine <- mutate(input.combine, year = as.numeric(input_year_string))
+
+}
+
+```
+
+
+### Data Reads
+```{r all-years}
+
+input.2014 <- Build_One_Year_Data('2014')
+input.2013 <- Build_One_Year_Data('2013')
+input.2012 <- Build_One_Year_Data('2012')
+input.2011 <- Build_One_Year_Data('2011')
+input.2010 <- Build_One_Year_Data('2010')
+input.2005 <- Build_One_Year_Data('2005')
+input.2000 <- Build_One_Year_Data('2000')
+
+input.combine <- rbind(input.2000, input.2005, input.2010, input.2011, input.2012, input.2013, input.2014)
+
+```
+
+### Combine and Clean up
+```{r clean}
+
+# Create date as date
+combine.clean <- input.combine %>%
+  mutate(date = as.Date(paste(day,month,year), format = "%d %B %Y"))
+
+# Create holiday dummy (Labor Day, Memorial Day, Thanksgiving, and Veterans day are relevant) 
+holiday_list  <- c("USLaborDay", "USMemorialDay", "USThanksgivingDay", "USVeteransDay")
+holiday_dates <- dates(as.character(holiday(2000:2020, holiday_list)), format = "Y-M-D")
+
+combine.clean <- combine.clean %>%
+  mutate(holiday_dummy = is.holiday(date, holiday_dates))
+
+# Create typical weekday dummy
+combine.clean <- combine.clean %>%
+  mutate(day_of_week = weekdays(date)) %>%
+  mutate(typical_dummy = FALSE) %>%
+  mutate(typical_dummy = ifelse(day_of_week == "Tuesday"   & !holiday_dummy, TRUE, typical_dummy)) %>%
+  mutate(typical_dummy = ifelse(day_of_week == "Wednesday" & !holiday_dummy, TRUE, typical_dummy)) %>%
+  mutate(typical_dummy = ifelse(day_of_week == "Thursday"  & !holiday_dummy, TRUE, typical_dummy))
+
+# Give full station names
+station.names = data.frame(abbrev = c("RM","EN","EP","NB","BK",
+                                      "AS","MA","19","12","LM",
+                                      "FV","CL","SL","BF","HY",
+                                      "SH","UC","FM","CN","PH",
+                                      "WC","LF","OR","RR","OW",
+                                      "EM","MT","PL","CC","16",
+                                      "24","GP","BP","DC","CM",
+                                      "CV","ED","NC","WP","SS",
+                                      "SB","SO","MB","WD"), 
+                           name = c("Richmond","El Cerrito del Norte","El Cerrito Plaza","North Berkeley","Berkeley",
+                                    "Ashby","MacArthur","19th Street Oakland","12th Street Oakland","Lake Merritt",
+                                    "Fruitvale","Coliseum","San Leandro","Bay Fair","Hayward",
+                                    "South Hayward","Union City","Fremont","Concord","Pleasant Hill",
+                                    "Walnut Creek","Lafayette","Orinda","Rockridge","West Oakland",
+                                    "Embarcadero","Montgomery","Powell","Civic Center","16th Street Mission",
+                                    "24th Street Mission","Glen Park","Balboa Park","Daly City","Colma",
+                                    "Castro Valley","Dublin Pleasanton","North Concord","Pittsburg Bay Point","South City",
+                                    "San Bruno","SF Airport","Millbrae","West Dublin")
+                           )
+
+# Join station names to origin station
+station.orig <- station.names %>%
+  select(orig_station = abbrev, orig_name = name)
+
+combine.clean <- left_join(combine.clean, station.orig, by = 'orig_station', copy = FALSE)
+
+station.dest <- station.names %>%
+  select(dest_station = abbrev, dest_name = name)
+
+combine.clean <- left_join(combine.clean, station.dest, by = 'dest_station', copy = FALSE)
+
+```
+
+### Summaries for typical weekdays
+```{r summaries}
+
+typical.clean <- combine.clean %>%
+  filter(typical_dummy)
+
+typical.clean <- combine.clean[combine.clean$typical_dummy == TRUE, ]
+
+typical.sum <- typical.clean %.%
+  group_by(orig_name, dest_name, year) %.%
+  summarise(count_typical = n(), 
+            sum_trips = sum(trips), 
+            avg_trips = mean(trips), 
+            min_trips = min(trips), 
+            max_trips = max(trips), 
+            stdev_trips = sd(trips), 
+            median_trips = median(trips))
+
+head(typical.sum, n = 25)
+
+```
+
+### Write to disk
+```{r to disk}
+# write typical file to disk for Tableau
+save(typical.sum, file = F_TYPICAL_R)
+write.csv(typical.sum, file = F_TYPICAL_CSV, row.names = FALSE, quote = F)
+
+# write big file to disk
+combine.write <- combine.clean %>%
+  select(-day, -month, -year, -orig_station, -dest_station)
+
+save(combine.write, file = F_ALL_R)
+write.csv(combine.write, file = F_ALL_CSV, row.names = FALSE, quote = F)
+
+
+```
+
