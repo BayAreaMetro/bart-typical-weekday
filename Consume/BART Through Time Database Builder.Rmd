@@ -34,11 +34,11 @@ knitr::opts_chunk$set(cache=TRUE)
 
 #### Remote output file names
 ```{r file-names}
-F_TYPICAL_R   = "M:/Data/Transit/BART Through Time/BART Through Time Typical Weekday.Rdata"
-F_TYPICAL_CSV = "M:/Data/Transit/BART Through Time/BART Through Time Typical Weekday.csv"
+F_TYPICAL_R   = "D:/files/Box Sync/Share Data/bart-typical-weekday/BART Through Time Typical Weekday.Rdata"
+F_TYPICAL_CSV = "D:/files/Box Sync/Share Data/bart-typical-weekday/BART Through Time Typical Weekday.csv"
 
-F_ALL_R   = "M:/Data/Transit/BART Through Time/BART Through Time.Rdata"
-F_ALL_CSV = "M:/Data/Transit/BART Through Time/BART Through Time.csv"
+F_ALL_R   = "D:/files/Box Sync/Share Data/bart-typical-weekday/BART Through Time.Rdata"
+F_ALL_CSV = "D:/files/Box Sync/Share Data/bart-typical-weekday/BART Through Time.csv"
 
 ```
 
@@ -46,23 +46,36 @@ F_ALL_CSV = "M:/Data/Transit/BART Through Time/BART Through Time.csv"
 #### Methods
 ```{r methods}
 
+Build_One_Month_Data <- function(input_month_string, input_year_string){
+  
+  file_path_string <- paste("M:/Data/Transit/", 
+                            input_year_string, 
+                            " Ridership/BART/by month/", 
+                            input_year_string,
+                            " ",
+                            input_month_string,
+                            ".csv",
+                            sep = '')
+  
+  input_df <- read.table(file = file_path_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  
+  return(input_df)
+  
+}
+
 Build_One_Year_Data <- function(input_year_string){
   
-  mar_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " March.csv", sep = '')
-  apr_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " April.csv", sep = '')
-  may_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " May.csv", sep = '')
-  sep_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " September.csv", sep = '')
-  oct_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " October.csv", sep = '')
-  nov_string = paste("M:/Data/Transit/", input_year_string, " Ridership/BART/by month/", input_year_string, " November.csv", sep = '')
   
-  input.mar <- read.table(file = mar_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
-  input.apr <- read.table(file = apr_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
-  input.may <- read.table(file = may_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
-  input.sep <- read.table(file = sep_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
-  input.oct <- read.table(file = oct_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
-  input.nov <- read.table(file = nov_string, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+  month_string_array = c("April", "May", "September", "October", "November")
   
-  input.combine <- rbind(input.mar, input.apr, input.may, input.sep, input.oct, input.nov)
+  # initialize with March data
+  input.combine <- Build_One_Month_Data("March", input_year_string)
+  
+  for(month_string in month_string_array){
+    working <- Build_One_Month_Data(month_string, input_year_string)
+    input.combine <- rbind(input.combine, working)
+  }
+  
   
   input.combine <- mutate(input.combine, year = as.numeric(input_year_string))
 
@@ -74,6 +87,7 @@ Build_One_Year_Data <- function(input_year_string){
 ### Data Reads
 ```{r all-years}
 
+input.2015 <- Build_One_Year_Data('2015')
 input.2014 <- Build_One_Year_Data('2014')
 input.2013 <- Build_One_Year_Data('2013')
 input.2012 <- Build_One_Year_Data('2012')
@@ -82,7 +96,8 @@ input.2010 <- Build_One_Year_Data('2010')
 input.2005 <- Build_One_Year_Data('2005')
 input.2000 <- Build_One_Year_Data('2000')
 
-input.combine <- rbind(input.2000, input.2005, input.2010, input.2011, input.2012, input.2013, input.2014)
+input.combine <- rbind(input.2000, input.2005, input.2010, 
+                       input.2011, input.2012, input.2013, input.2014, input.2015)
 
 ```
 
@@ -117,7 +132,8 @@ station.names = data.frame(abbrev = c("RM","EN","EP","NB","BK",
                                       "EM","MT","PL","CC","16",
                                       "24","GP","BP","DC","CM",
                                       "CV","ED","NC","WP","SS",
-                                      "SB","SO","MB","WD"), 
+                                      "SB","SO","MB","WD","OA",
+                                      "WS"), 
                            name = c("Richmond","El Cerrito del Norte","El Cerrito Plaza","North Berkeley","Berkeley",
                                     "Ashby","MacArthur","19th Street Oakland","12th Street Oakland","Lake Merritt",
                                     "Fruitvale","Coliseum","San Leandro","Bay Fair","Hayward",
@@ -126,7 +142,8 @@ station.names = data.frame(abbrev = c("RM","EN","EP","NB","BK",
                                     "Embarcadero","Montgomery","Powell","Civic Center","16th Street Mission",
                                     "24th Street Mission","Glen Park","Balboa Park","Daly City","Colma",
                                     "Castro Valley","Dublin Pleasanton","North Concord","Pittsburg Bay Point","South City",
-                                    "San Bruno","SF Airport","Millbrae","West Dublin")
+                                    "San Bruno","SF Airport","Millbrae","West Dublin", "Oakland Airport Connector",
+                                    "Unknown")
                            )
 
 # Join station names to origin station
@@ -140,6 +157,11 @@ station.dest <- station.names %>%
 
 combine.clean <- left_join(combine.clean, station.dest, by = 'dest_station', copy = FALSE)
 
+# Remove unknown station for now (no riders, likely place holder for future station)
+combine.clean <- combine.clean %>%
+  filter(orig_name != "Unknown") %>%
+  filter(dest_name != "Unknown")
+
 ```
 
 ### Summaries for typical weekdays
@@ -148,10 +170,8 @@ combine.clean <- left_join(combine.clean, station.dest, by = 'dest_station', cop
 typical.clean <- combine.clean %>%
   filter(typical_dummy)
 
-typical.clean <- combine.clean[combine.clean$typical_dummy == TRUE, ]
-
-typical.sum <- typical.clean %.%
-  group_by(orig_name, dest_name, year) %.%
+typical.sum <- typical.clean %>%
+  group_by(orig_name, dest_name, year) %>%
   summarise(count_typical = n(), 
             sum_trips = sum(trips), 
             avg_trips = mean(trips), 
