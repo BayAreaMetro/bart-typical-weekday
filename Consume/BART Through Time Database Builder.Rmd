@@ -34,11 +34,11 @@ knitr::opts_chunk$set(cache=TRUE)
 
 #### Remote output file names
 ```{r file-names}
-F_TYPICAL_R   = "D:/files/Box Sync/Share Data/bart-typical-weekday/BART Through Time Typical Weekday.Rdata"
-F_TYPICAL_CSV = "D:/files/Box Sync/Share Data/bart-typical-weekday/BART Through Time Typical Weekday.csv"
+F_TYPICAL_R   = "~/../Box Sync/Share Data/bart-typical-weekday/BART Through Time Typical Weekday.Rdata"
+F_TYPICAL_CSV = "~/../Box Sync/Share Data/bart-typical-weekday/BART Through Time Typical Weekday.csv"
 
-F_ALL_R   = "D:/files/Box Sync/Share Data/bart-typical-weekday/BART Through Time.Rdata"
-F_ALL_CSV = "D:/files/Box Sync/Share Data/bart-typical-weekday/BART Through Time.csv"
+F_ALL_R   = "~/../Box Sync/Share Data/bart-typical-weekday/BART Through Time.Rdata"
+F_ALL_CSV = "~/../Box Sync/Share Data/bart-typical-weekday/BART Through Time.csv"
 
 ```
 
@@ -87,6 +87,7 @@ Build_One_Year_Data <- function(input_year_string){
 ### Data Reads
 ```{r all-years}
 
+input.2016 <- Build_One_Year_Data('2016')
 input.2015 <- Build_One_Year_Data('2015')
 input.2014 <- Build_One_Year_Data('2014')
 input.2013 <- Build_One_Year_Data('2013')
@@ -97,7 +98,8 @@ input.2005 <- Build_One_Year_Data('2005')
 input.2000 <- Build_One_Year_Data('2000')
 
 input.combine <- rbind(input.2000, input.2005, input.2010, 
-                       input.2011, input.2012, input.2013, input.2014, input.2015)
+                       input.2011, input.2012, input.2013, input.2014, input.2015,
+                       input.2016)
 
 ```
 
@@ -108,7 +110,7 @@ input.combine <- rbind(input.2000, input.2005, input.2010,
 combine.clean <- input.combine %>%
   mutate(date = as.Date(paste(day,month,year), format = "%d %B %Y"))
 
-# Create holiday dummy (Labor Day, Memorial Day, Thanksgiving, and Veterans day are relevant) 
+# Create holiday dummy (Labor Day, Memorial Day, Thanksgiving, and Veterans Day are relevant) 
 holiday_list  <- c("USLaborDay", "USMemorialDay", "USThanksgivingDay", "USVeteransDay")
 holiday_dates <- dates(as.character(holiday(2000:2020, holiday_list)), format = "Y-M-D")
 
